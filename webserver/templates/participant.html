@@ -1,0 +1,112 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+
+  <p><a href="participant_personal">Show personal information</a></p>
+  {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+  <h2>Update weight and height</h2>
+  <form action="{{url_for('update_height_and_weight')}}" method=post>
+    <dl>
+      <dt>New height (cm):
+      <dd><input type=text name=height>
+      <dt>New weight (kg):
+      <dd><input type=text name=weight>
+      <dd><input type=submit value=Update>
+    </dl>
+  </form>
+
+  <h2>Add Habit: </h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_all_habit') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Habit</span>
+            <select name="all_habit_select" class="selectpicker form-control">
+              {% for h in all_habit %}
+              <option value="{{ h.hid }}">{{ h.habit_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Add</button>
+  </div>
+</form>
+  Don't see your habit on the list? <p><a href="/add_habit">Add a New Habit</a></p>
+
+<h2>Add Medication</h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_all_medication') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Medication</span>
+            <select name="all_medication_select" class="selectpicker form-control">
+              {% for m in all_medication%}
+              <option value="{{ m.mid }}">{{ m.medication_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Add</button>
+  </div>
+</form>
+  Don't see your medication on the list? <p><a href="/add_medication">Add a New Medication</a></p> 
+
+<h2>Add Medical History</h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_all_medical_history') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Medical History</span>
+            <select name="all_medical_history_select" class="selectpicker form-control">
+              {% for mh in all_medical_history%}
+              <option value="{{ mh.mhid }}">{{ mh.medical_history_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Add</button>
+  </div>
+</form>
+  Don't see your medical history on the list? <p><a href="/add_medical_history">Add a New Medical History</a></p> 
+
+<h2>Delete Habit: </h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_habit') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Habit</span>
+            <select name="habit_select" class="selectpicker form-control">
+              {% for h in habit %}
+              <option value="{{ h.hid }}">{{ h.habit_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Delete</button>
+  </div>
+</form>
+
+<h2>Delete Medication: </h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_medication') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Medication</span>
+            <select name="medication_select" class="selectpicker form-control">
+              {% for m in medication%}
+              <option value="{{ m.mid }}">{{ m.medication_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Delete</button>
+  </div>
+</form>
+
+<h2>Delete Medical History: </h2>
+<form class="form-inline" method="POST" action="{{ url_for('get_medical_history') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Medical History</span>
+            <select name="medical_history_select" class="selectpicker form-control">
+              {% for mh in medical_history %}
+              <option value="{{ mh.mhid }}">{{ mh.medical_history_type }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Delete</button>
+  </div>
+</form>
+Would you like to <p><a href="/search_study">search for a study</a></p> to join?
+{% endblock %}

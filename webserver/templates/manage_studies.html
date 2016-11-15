@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Create a New Study: </h2>
+{% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+<form class="form-inline" method="POST" action="{{ url_for('get_institution') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Institution</span>
+            <select name="inst_select" class="selectpicker form-control">
+              {% for i in institution %}
+              <option value="{{ i.iid }}">{{ i.name }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Select</button>
+  </div>
+</form>
+  Don't see your institution on the list? <p><a href="/add_institution">Add a New Institution</a></p>
+<form class="form-inline" method="POST" action="{{ url_for('get_grant') }}">
+  <div class="form-group">
+    <div class="input-group">
+        <span class="input-group-addon">Select Grant</span>
+            <select name="grant_select" class="selectpicker form-control">
+              {% for g in grants %}
+              <option value="{{ g.gid }}">{{ g.name }}</option>
+              {% endfor %}
+            </select>
+    </div>
+    <button type="submit" class="btn btn-default">Select</button>
+  </div>
+</form>
+  Don't see your grant on the list? <p><a href="/add_grant">Add a New Grant</a></p> 
+
+ <form action="{{ url_for('create_study') }}" method=post>
+    <dl>
+      <dt>Focus:
+      <dd><input type=text name=focus>
+      <dt>Start Date (mm/dd/yyyy):
+      <dd><input type=text name=start_date>
+      <dt>End Date (mm/dd/yyyy)
+      <dd><input type=text name=end_date>
+      <dt>Incentive:
+      <dd><input type=text name=incentive>
+      <dt>Risks:
+      <dd><input type=text name=risks>
+      <dt>Cost:
+      <dd><input type=text name=cost>
+      <dt>Number of Participants
+      <dd><input type=text name=no_participants>
+      <dd><input type=submit value=Create>
+    </dl>
+  </form>
+
+Would you like to <p><a href="/search_participants">search for participants</a></p> to add to your study?
+
+{% endblock %}

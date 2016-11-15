@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+
+{% block body %}
+  Height: {{height}}<br>
+  Weight: {{weight}}<br>
+  <h2>Habits</h2>
+  <ul class="habit">
+  {% for h in habit %}
+    <li>{{ h.habit_type }}{{ h.text|safe }}</li>
+  {% else %}
+    <li><em>No entries here so far</em></li>
+  {% endfor %}
+  </ul>
+
+  <h2>Medication</h2>
+  <ul class="medication">
+  {% for m in medication %}
+    <li>{{ m.medication_type }}{{ m.text|safe }}</li>
+  {% else %}
+    <li><em>No entries here so far</em></li>
+  {% endfor %}
+  </ul>
+
+  <h2>Medical history</h2>
+  <ul class="medical_history">
+  {% for mh in medical_history %}
+    <li>{{ mh.medical_history_type }}{{ mh.text|safe }}</li>
+  {% else %}
+    <li><em>No entries here so far</em></li>
+  {% endfor %}
+  </ul>
+
+<p><a href = "/participant">Go back to participant page</a></p>
+{% endblock%}

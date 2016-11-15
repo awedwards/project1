@@ -1,0 +1,17 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Add a New Institution</h2>
+  {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+  <form action="{{ url_for('add_institution') }}" method=post>
+    <dl>
+      <dt>Name:
+      <dd><input type=text name=name>
+      <dt>Institution Type (e.g. Hospital, University):
+      <dd><input type=text name=institution_type>
+      <dt>Location
+      <dd><input type=text name=location>
+      <dd><input type=submit value=Add>
+    </dl>
+  </form>
+  <p><a href="/manage_studies">Go back</a></p> to managing your studies.
+{% endblock %}

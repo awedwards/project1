@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Add a New Habit</h2>
+  <form action="{{ url_for('add_habit') }}" method=post>
+    <dl>
+      <dt>Habit
+      <dd><input type=text name=habit_type>
+     <dd><input type=submit value=Add>
+    </dl>
+  </form>
+  <p><a href="/participant">Go back</a></p> to page for participants.<br>
+  <p><a href="/participant_personal">Show personal information</a></p>
+{% endblock %}

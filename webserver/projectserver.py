@@ -1,73 +1,16 @@
 #!/usr/bin/env python2.7
 
-"""
-Columbia W4111 Intro to databases
-Example webserver
-
-To run locally
-
-    python server.py
-
-Go to http://localhost:8111 in your browser
-
-
-A debugger such as "pdb" may be helpful for debugging.
-Read about it online.
-"""
-
 import os
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
-from flask import Flask, request, render_template, g, redirect, Response
-
+from flask import Flask, request, render_template, g, redirect, Response, flash, session, url_for
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir)
 
 
-#
-# The following uses the postgresql test.db -- you can use this for debugging purposes
-# However for the project you will need to connect to your Part 2 database in order to use the
-# data
-#
-# XXX: The URI should be in the format of: 
-#
-#     postgresql://USER:PASSWORD@<IP_OF_POSTGRE_SQL_SERVER>/postgres
-#
-# For example, if you had username ewu2493, password foobar, then the following line would be:
-#
-#     DATABASEURI = "postgresql://ewu2493:foobar@<IP_OF_POSTGRE_SQL_SERVER>/postgres"
-#
-# Swap out the URI below with the URI for the database created in part 2
 DATABASEURI = "postgresql://ss5146:4psje@104.196.175.120/postgres"
-# This line creates a database engine that knows how to connect to the URI above
-#
+app.secret_key = 'many random bytes'
 engine = create_engine(DATABASEURI)
-#
-# START SQLITE SETUP CODE
-#
-# after these statements run, you should see a file test.db in your webserver/ directory
-# this is a sqlite database that you can query like psql typing in the shell command line:
-# 
-#     sqlite3 test.db
-#
-# The following sqlite3 commands may be useful:
-# 
-#     .tables               -- will list the tables in the database
-#     .schema <tablename>   -- print CREATE TABLE statement for table
-# 
-# The setup code should be deleted once you switch to using the Part 2 postgresql database
-#
-#engine.execute("""DROP TABLE IF EXISTS test;""")
-#engine.execute("""CREATE TABLE IF NOT EXISTS test (
-#  id serial,
-#  name text
-#);""")
-#engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'), ('ada lovelace');""")
-#
-# END SQLITE SETUP CODE
-#
-
-
 
 @app.before_request
 def before_request():
@@ -112,92 +55,530 @@ def teardown_request(exception):
 #
 @app.route('/')
 def index():
-  """
-  request is a special object that Flask provides to access web request information:
-
-  request.method:   "GET" or "POST"
-  request.form:     if the browser submitted a form, this contains the data in the form
-  request.args:     dictionary of URL arguments e.g., {a:1, b:2} for http://localhost?a=1&b=2
-
-  See its API: http://flask.pocoo.org/docs/0.10/api/#incoming-request-data
-  """
-
-  # DEBUG: this is debugging code to see what request looks like
-  print request.args
+    return render_template("index.html")
 
 
-  #
-  # example of a database query
-  #
-  cursor = g.conn.execute("SELECT name FROM users")
-  names = []
-  for result in cursor:
-    names.append(result['name'])  # can also be accessed using result[0]
-  cursor.close()
-
-  #
-  # Flask uses Jinja templates, which is an extension to HTML where you can
-  # pass data to a template and dynamically generate HTML based on the data
-  # (you can think of it as simple PHP)
-  # documentation: https://realpython.com/blog/python/primer-on-jinja-templating/
-  #
-  # You can see an example template in templates/index.html
-  #
-  # context are the variables that are passed to the template.
-  # for example, "data" key in the context variable defined below will be 
-  # accessible as a variable in index.html:
-  #
-  #     # will print: [u'grace hopper', u'alan turing', u'ada lovelace']
-  #     <div>{{data}}</div>
-  #     
-  #     # creates a <div> tag for each element in data
-  #     # will print: 
-  #     #
-  #     #   <div>grace hopper</div>
-  #     #   <div>alan turing</div>
-  #     #   <div>ada lovelace</div>
-  #     #
-  #     {% for n in data %}
-  #     <div>{{n}}</div>
-  #     {% endfor %}
-  #
-  context = dict(data = names)
-
-
-  #
-  # render_template looks in the templates/ folder for files.
-  # for example, the below file reads template/index.html
-  #
-  return render_template("index.html", **context)
-
-#
-# This is an example of a different path.  You can see it at
-# 
-#     localhost:8111/another
-#
-# notice that the functio name is another() rather than index()
-# the functions for each app.route needs to have different names
-#
-#@app.route('/another')
-#def another():
-#  return render_template("anotherfile.html")
-
-
-# Example of adding new data to the database
-#@app.route('/add', methods=['POST'])
-#def add():
-#  name = request.form['name']
-#  print name
-#  cmd = 'INSERT INTO test(name) VALUES (:name1), (:name2)';
-#  g.conn.execute(text(cmd), name1 = name, name2 = name);
-#  return redirect('/')
-
-
-@app.route('/login')
+@app.route('/index', methods = ['POST'])
 def login():
-    abort(401)
-    this_is_never_executed()
+    error = None
+    cursor = g.conn.execute("SELECT uid FROM users")
+    uids = []
+    for result in cursor:
+      uids.append(result['uid'])  # can also be accessed using result[0]
+    cursor.close()
+    
+    if request.method == 'POST':
+        try:
+            temp_uid = int(request.form['uid'])
+        except:
+            error = 'Invalid User ID'
+	    temp_uid = None
+        if temp_uid not in uids:
+            error = 'Invalid User ID'
+        elif request.form['password'] != g.conn.execute('select password from users where uid = %s',temp_uid).fetchone()['password']:
+            error = 'Invalid password'
+        else:
+            session['logged_in'] = True
+            session['uid'] = temp_uid
+            flash('You were logged in')
+                # return redirect('/')
+    return render_template('index.html', error=error)
 
+@app.route('/logout')
+def logout():
+    session.pop('logged_in', None)
+    session.pop('uid',None)
+    flash('You were logged out')
+    return redirect(url_for('index'))
+
+@app.route('/register', methods=['GET','POST'])
+def register_user():
+    #print request.form['location']
+    uidresult = g.conn.execute('select max(uid)+1 as newuid from users')
+    row = uidresult.fetchone()
+    newuid = row['newuid']
+    if request.method == 'POST':
+        name = request.form['name']
+	loc = request.form['location']
+	dob = request.form['dob']
+	email = request.form['email']
+	pn = request.form['phone_number']
+	pw = request.form['password']
+    	g.conn.execute("INSERT INTO users VALUES (%s, %s, %s, %s, %s, %s, %s)", [newuid, name, loc, dob, email, pn, pw]);
+	flash('Your unique ID is: ' + str(newuid));
+        session['uid'] = newuid
+    return render_template("register.html")
+
+@app.route('/participant_register',methods=['GET','POST'])
+def participant_register():
+    error=None
+    try:
+        uid = session['uid']
+    except KeyError:
+        error = 'Must sign up as a generic user first'
+        render_template('participant_register.html',error=error)
+    try:
+        if request.method == 'POST':
+            height = request.form['height']
+            weight = request.form['weight']
+            sex = request.form['sex']
+            g.conn.execute("INSERT INTO investigator VALUES (%s, %s, %s, %s)", [uid, height, weight, sex]);
+    except:
+        error = "Make sure you have entered something in every field"
+        return render_template('participant_register.html',error=error)
+    return render_template('participant_register.html',error=error)
+
+
+@app.route('/investigator_register',methods=['GET','POST'])
+def register_investigator():
+    error=None
+    try:
+        uid = session['uid']
+    except KeyError:
+        error = 'Must sign up as a generic user first'
+        render_template('investigator_register.html',error=error)
+    try:
+        if request.method == 'POST':
+            degree = request.form['degree']
+            experience = request.form['experience']
+            g.conn.execute("INSERT INTO investigator VALUES (%s, %s, %s)", [uid, degree, experience]);
+    except:
+       error = "Make sure you have entered something in every field"
+       return render_template('investigator_register.html',error=error)
+    return render_template('investigator_register.html',error=error)
+
+#@app.route('/participant')
+def show_all_habit():
+    cursor = g.conn.execute('select * from habit');
+    habit = cursor.fetchall();
+    cursor.close();
+    print habit;
+    return habit;
+#    return render_template("participant.html", habit = habit)
+
+#@app.route('/participant')
+def show_all_medication():
+    cursor = g.conn.execute('select * from medication');
+    medication = cursor.fetchall();
+    cursor.close();
+    return medication;
+#    return render_template("participant.html", medication = medication)
+
+#@app.route('/participant')
+def show_all_medical_history():
+    cursor = g.conn.execute('select * from medical_history');
+    medical_history = cursor.fetchall();
+    cursor.close();
+    return medical_history;
+#    return render_template("participant.html", medical_history = medical_history)
+
+"""
+@app.route('/participant')
+def show_all():
+    all_habit = show_all_habit();
+    all_medication = show_all_medication();
+    all_medical_history = show_all_medical_history();
+    return render_template("participant.html", habit = habit, medication = medication, medical_history = medical_history)
+"""
+
+@app.route('/update_height_and_weight', methods = ['GET','POST'])
+def update_height_and_weight():
+    if request.method == 'POST':
+	try:
+	    session['logged_in'] == True
+        except KeyError:
+            error = "You are not logged in."
+            return render_template("/index.html",error=error)
+
+	curr_uid = session['uid'];
+	print(curr_uid);
+	height = request.form['height'];
+	weight = request.form['weight'];
+	g.conn.execute("UPDATE participant SET height = %s, weight=%s where uid = %s", [int(height), int(weight), curr_uid]);
+	flash('Your height and weight were successfully updated.');
+    return redirect('/participant');
+
+def show_height_and_weight(uid):
+    cursor = g.conn.execute('select height, weight from participant where uid = %s', uid);
+    temp = cursor.fetchone();
+    cursor.close();
+    return temp.height, temp.weight
+
+def show_habit(uid):
+    cursor = g.conn.execute('select habit.hid, habit.habit_type from habit, has_habit where has_habit.hid = habit.hid and has_habit.uid = %s', uid);
+    habit = cursor.fetchall();
+    cursor.close();
+    print habit;
+    return habit
+
+def show_medication(uid):
+    cursor = g.conn.execute('select medication.mid, medication.medication_type from medication, takes where takes.mid = medication.mid and takes.uid = %s', uid);
+    medication = cursor.fetchall();
+    cursor.close();
+    return medication
+
+def show_medical_history(uid):
+    cursor = g.conn.execute('select medical_history.mhid, medical_history.medical_history_type from medical_history, has_medical_history where has_medical_history.mhid = medical_history.mhid and has_medical_history.uid = %s', uid);
+    medical_history = cursor.fetchall();
+    cursor.close();
+    return medical_history;
+
+@app.route('/participant_personal')
+def show():
+    try:
+	session['logged_in'] == True
+    except KeyError:
+        error = "You are not logged in."
+        return render_template("/index.html",error=error)
+    uid = session['uid'];
+    (height, weight) = show_height_and_weight(uid);
+    habit = show_habit(uid);
+    medication = show_medication(uid);
+    medical_history = show_medical_history(uid);
+    return render_template("participant_personal.html", height = height, weight = weight, habit = habit, medication = medication, medical_history = medical_history)
+
+@app.route('/participant', methods = ['GET', 'POST'])
+def show_select():
+    try:
+	session['logged_in'] == True
+    except KeyError:
+        error = "You are not logged in."
+        return render_template("/index.html",error=error)
+    all_habit = show_all_habit();
+    all_medication = show_all_medication();
+    all_medical_history = show_all_medical_history(); 
+    uid = session['uid'];
+    habit = show_habit(uid);
+    medication = show_medication(uid);
+    medical_history = show_medical_history(uid);
+    return render_template("participant.html", all_habit = all_habit, all_medical_history = all_medical_history, all_medication = all_medication, habit = habit, medication = medication, medical_history = medical_history, error=session['error'])
+
+@app.route('/add_habit',methods = ['GET','POST'])
+def add_habit():
+    hidresult = g.conn.execute('select max(hid)+1 as newhid from habit')
+    row = hidresult.fetchone()
+    newhid = row['newhid']
+    if request.method == 'POST':
+        habit_type = request.form['habit_type']
+        g.conn.execute("INSERT INTO habit VALUES (%s, %s)", [newhid,habit_type]);
+        flash('Your habit was successfully added')
+    return render_template('add_habit.html')
+
+@app.route('/add_medication',methods = ['GET','POST'])
+def add_medication():
+    midresult = g.conn.execute('select max(mid)+1 as newmid from medication')
+    row = midresult.fetchone()
+    newmid = row['newmid']
+    if request.method == 'POST':
+        medication_type = request.form['medication_type']
+        g.conn.execute("INSERT INTO medication VALUES (%s, %s)", [newmid,medication_type]);
+        flash('Your medication was successfully added')
+    return render_template('add_medication.html')
+
+@app.route('/add_medical_history',methods = ['GET','POST'])
+def add_medical_history():
+    mhidresult = g.conn.execute('select max(mhid)+1 as newmhid from medical_history')
+    row = mhidresult.fetchone()
+    newmhid = row['newmhid']
+    if request.method == 'POST':
+        medical_history_type = request.form['medical_history_type']
+        g.conn.execute("INSERT INTO medical_history VALUES (%s, %s)", [newmhid,medical_history_type]);
+        flash('Your medical history was successfully added')
+    return render_template('add_medical_history.html')
+
+
+@app.route('/get_habit',methods = ['GET','POST'])
+def get_habit():
+    try:
+        session['logged_in'] == True
+    except KeyError:
+        session['error'] = "You are not logged in."
+        return redirect('/participant')
+
+    select = request.form.get('habit_select')
+    g.conn.execute('DELETE FROM has_habit WHERE uid = %s AND hid = %s',[session['uid'],select])
+    return redirect('/participant')
+
+@app.route('/get_medication',methods = ['GET','POST'])
+def get_medication():
+    try:
+        session['logged_in'] == True
+    except KeyError:
+        session['error'] = "You are not logged in."
+        return redirect('/participant')
+
+    select = request.form.get('medication_select')
+    g.conn.execute('DELETE FROM takes WHERE uid = %s AND mid = %s',[session['uid'],select])
+
+    return redirect('/participant')
+
+@app.route('/get_medical_history',methods = ['GET','POST'])
+def get_medical_history():
+    try:
+        session['logged_in'] == True
+    except KeyError:
+        session['error'] = "You are not logged in."
+        return redirect('/participant')
+
+    select = request.form.get('medical_history_select')
+    g.conn.execute('DELETE FROM has_medical_history WHERE uid = %s AND mhid = %s',[session['uid'],select])
+    return redirect('/participant')
+
+@app.route('/get_all_habit',methods = ['GET', 'POST'])
+def get_all_habit():
+    try:
+        session['logged_in'] = True
+    except:
+        error = "You are not logged in."
+        return redirect("/index.html", error = error);
+    select = request.form.get('all_habit_select');
+    try:
+	g.conn.execute('insert into has_habit values(%s, %s)', [session['uid'], select]);
+    except:
+	session['error'] = "You already have this habit."
+	return redirect('/participant');
+    return redirect('/participant')
+
+@app.route('/get_all_medication',methods = ['GET', 'POST'])
+def get_all_medication():
+    try:
+        session['logged_in'] = True
+    except:
+        error = "You are not logged in."
+        return redirect("/index.html", error = error);
+    select = request.form.get('all_medication_select')
+    try:
+	g.conn.execute('insert into takes values(%s, %s)', [select, session['uid']]);
+    except:
+	session['error'] = "You already take this medication."
+	return redirect('/participant');
+    return redirect('/participant')
+
+@app.route('/get_all_medical_history',methods = ['GET', 'POST'])
+def get_all_medical_history():
+    try:
+        session['logged_in'] = True
+    except:
+        error = "You are not logged in."
+        return redirect("/index.html", error = error);
+    select = request.form.get('all_medical_history_select')
+    try:
+	g.conn.execute('insert into has_medical_history values(%s, %s)', [select, session['uid']]);
+    except:
+	session['error'] = "You already have this medical history."
+	return redirect('/participant');
+ 
+    return redirect('/participant')
+
+#@app.route('/fill_institutions',methods=['GET','POST'])
+def fill_institutions():
+
+    cursor = g.conn.execute('select iid,name from institution')
+    institutions = cursor.fetchall()
+    cursor.close();
+    return institutions
+
+#@app.route('/fill_grants',methods=['GET','POST'])
+def fill_grants():
+
+    cursor = g.conn.execute('select gid,name from grants')
+    grants = cursor.fetchall()
+    cursor.close();
+    return grants
+    #return render_template("manage_studies.html",grants=grants)
+
+@app.route('/fill_inst_and_grants',methods=['GET','POST'])
+def fill_inst_and_grants():
+    institutions=fill_institutions()
+    grants=fill_grants()
+    return render_template("manage_studies.html",institution=institutions, grants=grants, error=session['error'])
+
+@app.route('/get_institution',methods = ['POST'])
+def get_institution():
+    select = request.form.get('inst_select')
+    session['new_study_iid'] = select
+    print select
+    return redirect('/manage_studies')
+
+@app.route('/get_grant',methods = ['GET','POST'])
+def get_grant():
+    select = request.form.get('grant_select')
+    session['new_study_gid'] = select
+    print select
+    return redirect('/manage_studies')
+
+@app.route('/manage_studies',methods = ['GET','POST'])
+def create_study():
+    session['error']=None
+    sidresult = g.conn.execute('select max(sid)+1 as newsid from study')
+    row = sidresult.fetchone()
+    newsid = row['newsid']
+    
+    if request.method == 'POST':
+        try:
+            session['logged_in'] == True
+        except KeyError:
+            session['error'] = "You are not logged in."
+            return redirect('fill_inst_and_grants')
+        focus = request.form['focus']
+        start_date = request.form['start_date']
+        end_date = request.form['end_date']
+        incentive = request.form['incentive']
+        risks = request.form['risks']
+        cost = request.form['cost']
+        no_part = request.form['no_participants']
+        
+        try:
+            g.conn.execute("INSERT INTO study VALUES (%s, %s, %s, %s, %s, %s, %s, %s)", [newsid, incentive, start_date, end_date, focus, no_part, risks, cost])
+        except:
+            session['error'] = 'Make sure you have entered a value into every field'
+            return redirect('/fill_inst_and_grants')
+        g.conn.execute("insert into conducts values (%s, %s)",[session['uid'],newsid])
+            
+        try:
+            g.conn.execute("INSERT INTO funds VALUES (%s, %s)", [session['new_study_gid'], newsid])
+        except:
+            session['error'] = 'Something went wrong.'
+            return redirect('/fill_inst_and_grants') 
+        try:
+            g.conn.execute("insert into oversees values (%s, %s, %s)",[session['new_study_iid'], session['new_study_gid'], newsid])
+        except:
+            session['error'] = 'Make sure you have selected both an institution and grant (Refresh Page)'
+            return redirect('/fill_inst_and_grants')
+        flash('Your study was successfully added.')
+    return redirect('/fill_inst_and_grants')
+
+@app.route('/add_institution',methods = ['GET','POST'])
+def add_institution():
+    iidresult = g.conn.execute('select max(iid)+1 as newiid from institution')
+    row = iidresult.fetchone()
+    newiid = row['newiid']
+    if request.method == 'POST':
+        name = request.form['name']
+        inst_type = request.form['institution_type']
+        loc = request.form['location']
+        g.conn.execute("INSERT INTO institution VALUES (%s, %s, %s, %s)", [newiid,name,inst_type,loc]);
+        flash('Your institution was successfully added')
+    return render_template('add_institution.html')
+
+@app.route('/add_grant',methods = ['GET','POST'])
+def add_grant():
+    gidresult = g.conn.execute('select max(gid)+1 as newgid from grants')
+    row = gidresult.fetchone()
+    newgid = row['newgid']
+    if request.method == 'POST':
+        name = request.form['name']
+        amount = request.form['amount']
+        gtype = request.form['grant_type']
+        start_date = request.form['start_date']
+        end_date = request.form['end_date']
+        source = request.form['source']
+        g.conn.execute("INSERT INTO grants VALUES (%s, %s, %s, %s, %s, %s,%s)", [newgid,name,amount,gtype,start_date,end_date,source]);
+        flash('Your grant was successfully added')
+    return render_template('add_grant.html')
+
+@app.route('/search_participants',methods = ['GET','POST'])
+def search_participants():
+
+    uids = []
+
+    if request.method == 'POST':
+        loc = request.form['location']
+        sex = request.form['sex']
+        habit = request.form['habit']
+        medication = request.form['medication']
+        med_history = request.form['med_history']
+
+        #set of all possible participants
+        participants = g.conn.execute("SELECT uid FROM participant")
+        for p in participants:
+            uids.append(p['uid'])
+
+        if loc:
+            temp_uids = []
+            match = g.conn.execute("SELECT uid FROM users WHERE location LIKE '%%%s%%'",loc)
+            for p in match:
+                temp_uids.append(p['uid'])
+                uids = list(set(uids) & set(temp_uids))
+        if habit:
+            temp_uids = []
+            match = g.conn.execute("SELECT has_habit.uid FROM has_habit,habit WHERE habit_type LIKE '%%%s%%' and habit.hid = has_habit.hid",habit)
+            for p in match:
+                temp_uids.append(p['uid'])
+                uids = list(set(uids) & set(temp_uids))
+        if medication:
+            temp_uids = []
+            match = g.conn.execute("SELECT has_medication.uid FROM has_medication,medication WHERE medication_type LIKE '%%%s%%' and medication.mid = has_medication.mid",medication)
+            for p in match:
+                temp_uids.append(p['uid'])
+                uids = list(set(uids) & set(temp_uids))
+        if med_history:
+            temp_uids = []
+            users = g.conn.execute("SELECT has_medical_history.uid FROM has_medical_history,medical_history WHERE medical_history_type LIKE '%%%s%%' and medical_history.mhid = has_medical_history.mhid",med_history)
+            for p in match:
+                temp_uids.append(p['uid'])
+                uids = list(set(uids) & set(temp_uids))
+        if sex:
+            temp_uids = []
+            match = g.conn.execute("SELECT uid FROM participant WHERE sex = %s",sex)
+            for p in match:
+                temp_uids.append(p['uid'])
+                uids = list(set(uids) & set(temp_uids))
+    print uids
+    return render_template("search_participants.html")
+
+@app.route('/search_study',methods = ['GET','POST'])
+def search_study():
+
+    sids = []
+
+    if request.method == 'POST':
+        loc = request.form['location']
+        focus = request.form['focus']
+        #set of all possible studies
+        studies = g.conn.execute("SELECT sid FROM study")
+        for s in studies:
+            sids.append(s['sid'])
+
+        if loc:
+            temp_sids = []
+            match = g.conn.execute("select oversees.sid from oversees, institution where oversees.iid=institution.iid and institution.location LIKE '%%%s%%'",str(loc))
+            for s in match:
+                temp_sids.append(s['uid'])
+                uids = list(set(uids) & set(temp_uids))
+        if focus:
+            temp_sids = []
+            match = g.conn.execute("SELECT sid FROM study WHERE study.focus LIKE '%%%s%%'",focus)
+            for s in match:
+                temp_uids.append(s['uid'])
+                sids = list(set(uids) & set(temp_uids))
+    return render_template("search_study.html")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#@ methods=['GET','POST'])
+#def join_study():
+#    if session['logged_in'] == True:
+#        uid = session['uid']
+#        study_list = g.conn.execute("SELECT DISTINCT study.* FROM study, conducts WHERE (study.sid != conducts.sid) AND conducts.uid = %s", uid);
+#        print study_list
+#        return render_template("manage_studies.html", study_list=study_list)
 
 if __name__ == "__main__":
   import click

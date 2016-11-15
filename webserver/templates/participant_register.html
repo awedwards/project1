@@ -1,0 +1,16 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2> Participant Sign-Up</h2>
+  {% if error %}<p class=error><strong>Error:</strong> {{ error }}{% endif %}
+  <form action="{{ url_for('participant_register') }}" method=post>
+      <dt>Height (in cm)
+      <dd><input type=text name=height>
+      <dt>Weight (in kg)
+      <dd><input type=text name=weight>
+      <dt>Sex (male or female)
+      <dd><input type=text name=sex>
+      <dd><input type=submit value=Submit>
+  </form>
+  
+Would you also like to sign up as an <p><a href="investigator_register">investigator?</a></p>
+{% endblock %}
