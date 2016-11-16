@@ -16,4 +16,9 @@
       <dd><input type=submit value=Search>
     </dl>
   </form>
+
+  <h2>Search Results (Name and Email):</h2>
+      {% for sr in search_results %}
+      <p>{{ sr }}</p>
+      {% endfor %}
 {% endblock %}

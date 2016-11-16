@@ -481,7 +481,7 @@ def add_grant():
 def search_participants():
 
     uids = []
-
+    
     if request.method == 'POST':
         loc = request.form['location']
         sex = request.form['sex']
@@ -496,36 +496,51 @@ def search_participants():
 
         if loc:
             temp_uids = []
-            match = g.conn.execute("SELECT uid FROM users WHERE location LIKE '%%%s%%'",loc)
+            query = "SELECT uid FROM users WHERE location LIKE %s"
+            match = g.conn.execute(query, '%' + loc + '%')
             for p in match:
                 temp_uids.append(p['uid'])
-                uids = list(set(uids) & set(temp_uids))
+            uids = list(set(uids) & set(temp_uids))
         if habit:
             temp_uids = []
-            match = g.conn.execute("SELECT has_habit.uid FROM has_habit,habit WHERE habit_type LIKE '%%%s%%' and habit.hid = has_habit.hid",habit)
+            query = "SELECT has_habit.uid FROM has_habit,habit WHERE habit_type LIKE %s and habit.hid = has_habit.hid"
+            match = g.conn.execute(query, '%' + habit + '%')
             for p in match:
                 temp_uids.append(p['uid'])
-                uids = list(set(uids) & set(temp_uids))
+            uids = list(set(uids) & set(temp_uids))
         if medication:
             temp_uids = []
-            match = g.conn.execute("SELECT has_medication.uid FROM has_medication,medication WHERE medication_type LIKE '%%%s%%' and medication.mid = has_medication.mid",medication)
+            query = "SELECT has_medication.uid FROM has_medication,medication WHERE medication_type LIKE %s and medication.mid = has_medication.mid"
+            match = g.conn.execute(query, '%' + medication + '%')
             for p in match:
                 temp_uids.append(p['uid'])
-                uids = list(set(uids) & set(temp_uids))
+            uids = list(set(uids) & set(temp_uids))
         if med_history:
             temp_uids = []
-            users = g.conn.execute("SELECT has_medical_history.uid FROM has_medical_history,medical_history WHERE medical_history_type LIKE '%%%s%%' and medical_history.mhid = has_medical_history.mhid",med_history)
+            query = "SELECT has_medical_history.uid FROM has_medical_history,medical_history WHERE medical_history_type LIKE %s and medical_history.mhid = has_medical_history.mhid"
+            match = g.conn.execute(query, '%' + med_history + '%')
             for p in match:
                 temp_uids.append(p['uid'])
-                uids = list(set(uids) & set(temp_uids))
+            uids = list(set(uids) & set(temp_uids))
         if sex:
             temp_uids = []
             match = g.conn.execute("SELECT uid FROM participant WHERE sex = %s",sex)
             for p in match:
                 temp_uids.append(p['uid'])
-                uids = list(set(uids) & set(temp_uids))
-    print uids
-    return render_template("search_participants.html")
+            uids = list(set(uids) & set(temp_uids))
+    placeholder= '%s'
+    placeholders= ', '.join(placeholder for unused in uids)
+    
+    query= 'SELECT name, email FROM users WHERE uid IN (%s)' % placeholders
+    try:
+        cursor= g.conn.execute(query, uids)
+    except:
+        cursor = []
+        pass
+    search_results = []
+    for row in cursor:
+        search_results.append(row['name'] + ', ' + row['email'])
+    return render_template("search_participants.html", search_results=search_results)
 
 @app.route('/search_study',methods = ['GET','POST'])
 def search_study():
@@ -542,43 +557,34 @@ def search_study():
 
         if loc:
             temp_sids = []
-            match = g.conn.execute("select oversees.sid from oversees, institution where oversees.iid=institution.iid and institution.location LIKE '%%%s%%'",str(loc))
+            query = "select oversees.sid from oversees, institution where oversees.iid=institution.iid and institution.location LIKE %s"
+            match = g.conn.execute(query, '%' + loc + '%')
             for s in match:
-                temp_sids.append(s['uid'])
-                uids = list(set(uids) & set(temp_uids))
+                temp_sids.append(s['sid'])
+            sids = list(set(sids) & set(temp_sids))
+
         if focus:
             temp_sids = []
-            match = g.conn.execute("SELECT sid FROM study WHERE study.focus LIKE '%%%s%%'",focus)
+            query = "SELECT sid FROM study WHERE study.focus LIKE %s"
+            match = g.conn.execute(query, '%' + focus + '%')
             for s in match:
-                temp_uids.append(s['uid'])
-                sids = list(set(uids) & set(temp_uids))
-    return render_template("search_study.html")
+                temp_sids.append(s['sid'])
+            sids = list(set(sids) & set(temp_sids))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#@ methods=['GET','POST'])
-#def join_study():
-#    if session['logged_in'] == True:
-#        uid = session['uid']
-#        study_list = g.conn.execute("SELECT DISTINCT study.* FROM study, conducts WHERE (study.sid != conducts.sid) AND conducts.uid = %s", uid);
-#        print study_list
-#        return render_template("manage_studies.html", study_list=study_list)
+    placeholder= '%s'
+    placeholders= ', '.join(placeholder for unused in sids)
+    
+    query= 'SELECT incentives, focus, start_date, end_date FROM study WHERE sid IN (%s)' % placeholders
+    try:
+        cursor= g.conn.execute(query, sids)
+    except:
+        cursor = []
+        pass
+    search_results = []
+    for row in cursor:
+        search_results.append(row['incentives'] + ', ' + row['focus'] + ', ' + str(row['start_date']) + ', ' + str(row['end_date']))
+ 
+    return render_template("search_study.html", search_results=search_results)
 
 if __name__ == "__main__":
   import click

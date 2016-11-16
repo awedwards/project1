@@ -10,4 +10,9 @@
       <dd><input type=submit value=Search>
     </dl>
   </form>
+
+  <h2>Search Results (Incentives, Focus, Start Date, End Date):</h2>
+      {% for sr in search_results %}
+      <p>{{ sr }}</p>
+      {% endfor %}
 {% endblock %}
