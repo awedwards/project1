@@ -93,7 +93,7 @@ def logout():
 
 @app.route('/register', methods=['GET','POST'])
 def register_user():
-    #print request.form['location']
+    error = None
     uidresult = g.conn.execute('select max(uid)+1 as newuid from users')
     row = uidresult.fetchone()
     newuid = row['newuid']
@@ -104,10 +104,14 @@ def register_user():
 	email = request.form['email']
 	pn = request.form['phone_number']
 	pw = request.form['password']
-    	g.conn.execute("INSERT INTO users VALUES (%s, %s, %s, %s, %s, %s, %s)", [newuid, name, loc, dob, email, pn, pw]);
-	flash('Your unique ID is: ' + str(newuid));
+        try:
+    	    g.conn.execute("INSERT INTO users VALUES (%s, %s, %s, %s, %s, %s, %s)", [newuid, name, loc, dob, email, pn, pw]);
+	except:
+            error='Make sure you have entered a value in every field'
+            return render_template('register.html',error=error)
+        flash('Your unique ID is: ' + str(newuid));
         session['uid'] = newuid
-    return render_template("register.html")
+    return render_template("register.html",error=error)
 
 @app.route('/participant_register',methods=['GET','POST'])
 def participant_register():
@@ -194,7 +198,11 @@ def update_height_and_weight():
 	print(curr_uid);
 	height = request.form['height'];
 	weight = request.form['weight'];
-	g.conn.execute("UPDATE participant SET height = %s, weight=%s where uid = %s", [int(height), int(weight), curr_uid]);
+        try:
+	    g.conn.execute("UPDATE participant SET height = %s, weight=%s where uid = %s", [int(height), int(weight), curr_uid]);
+        except:
+            session['error'] = 'Please add a valid height and weight'
+            return redirect('/participant')
 	flash('Your height and weight were successfully updated.');
     return redirect('/participant');
 
@@ -225,6 +233,7 @@ def show_medical_history(uid):
 
 @app.route('/participant_personal')
 def show():
+    error = None
     try:
 	session['logged_in'] == True
     except KeyError:
@@ -450,6 +459,7 @@ def create_study():
 
 @app.route('/add_institution',methods = ['GET','POST'])
 def add_institution():
+    error=None
     iidresult = g.conn.execute('select max(iid)+1 as newiid from institution')
     row = iidresult.fetchone()
     newiid = row['newiid']
@@ -457,12 +467,21 @@ def add_institution():
         name = request.form['name']
         inst_type = request.form['institution_type']
         loc = request.form['location']
-        g.conn.execute("INSERT INTO institution VALUES (%s, %s, %s, %s)", [newiid,name,inst_type,loc]);
+        if name and inst_type and loc:
+            try:
+                g.conn.execute("INSERT INTO institution VALUES (%s, %s, %s, %s)", [newiid,name,inst_type,loc]);
+            except:
+ 	        error = 'Make sure you enter a value into every field'
+                return render_template('add_institution.html',error=error)
+        else:
+            error = 'Make sure you enter a value into every field'
+            return render_template('add_institution.html',error=error)
         flash('Your institution was successfully added')
-    return render_template('add_institution.html')
+    return render_template('add_institution.html', error=error)
 
 @app.route('/add_grant',methods = ['GET','POST'])
 def add_grant():
+    error=None
     gidresult = g.conn.execute('select max(gid)+1 as newgid from grants')
     row = gidresult.fetchone()
     newgid = row['newgid']
@@ -473,9 +492,17 @@ def add_grant():
         start_date = request.form['start_date']
         end_date = request.form['end_date']
         source = request.form['source']
-        g.conn.execute("INSERT INTO grants VALUES (%s, %s, %s, %s, %s, %s,%s)", [newgid,name,amount,gtype,start_date,end_date,source]);
+        if name and amount and gtype and start_date and end_date and source:
+            try:
+                g.conn.execute("INSERT INTO grants VALUES (%s, %s, %s, %s, %s, %s,%s)", [newgid,name,amount,gtype,start_date,end_date,source]);
+            except:
+                error='Make sure you have entered a value in every field'
+                return render_template('add_grant.html',error=error)
+        else:
+            error='Make sure you have entered a value in every field'
+            return render_template('add_grant.html',error=error)
         flash('Your grant was successfully added')
-    return render_template('add_grant.html')
+    return render_template('add_grant.html',error=error)
 
 @app.route('/search_participants',methods = ['GET','POST'])
 def search_participants():
@@ -496,35 +523,35 @@ def search_participants():
 
         if loc:
             temp_uids = []
-            query = "SELECT uid FROM users WHERE location LIKE %s"
-            match = g.conn.execute(query, '%' + loc + '%')
+            query = "SELECT uid FROM users WHERE location LIKE LOWER(%s)"
+            match = g.conn.execute(query, '%' + loc.lower() + '%')
             for p in match:
                 temp_uids.append(p['uid'])
             uids = list(set(uids) & set(temp_uids))
         if habit:
             temp_uids = []
-            query = "SELECT has_habit.uid FROM has_habit,habit WHERE habit_type LIKE %s and habit.hid = has_habit.hid"
-            match = g.conn.execute(query, '%' + habit + '%')
+            query = "SELECT has_habit.uid FROM has_habit,habit WHERE habit_type LIKE LOWER(%s) and habit.hid = has_habit.hid"
+            match = g.conn.execute(query, '%' + habit.lower() + '%')
             for p in match:
                 temp_uids.append(p['uid'])
             uids = list(set(uids) & set(temp_uids))
         if medication:
             temp_uids = []
-            query = "SELECT has_medication.uid FROM has_medication,medication WHERE medication_type LIKE %s and medication.mid = has_medication.mid"
-            match = g.conn.execute(query, '%' + medication + '%')
+            query = "SELECT takes.uid FROM takes, medication WHERE medication_type LIKE LOWER(%s) and medication.mid = takes.mid"
+            match = g.conn.execute(query, '%' + medication.lower() + '%')
             for p in match:
                 temp_uids.append(p['uid'])
             uids = list(set(uids) & set(temp_uids))
         if med_history:
             temp_uids = []
-            query = "SELECT has_medical_history.uid FROM has_medical_history,medical_history WHERE medical_history_type LIKE %s and medical_history.mhid = has_medical_history.mhid"
-            match = g.conn.execute(query, '%' + med_history + '%')
+            query = "SELECT has_medical_history.uid FROM has_medical_history,medical_history WHERE medical_history_type LIKE LOWER(%s) and medical_history.mhid = has_medical_history.mhid"
+            match = g.conn.execute(query, '%' + med_history.lower() + '%')
             for p in match:
                 temp_uids.append(p['uid'])
             uids = list(set(uids) & set(temp_uids))
         if sex:
             temp_uids = []
-            match = g.conn.execute("SELECT uid FROM participant WHERE sex = %s",sex)
+            match = g.conn.execute("SELECT uid FROM participant WHERE sex = LOWER(%s)",sex.lower())
             for p in match:
                 temp_uids.append(p['uid'])
             uids = list(set(uids) & set(temp_uids))
@@ -557,16 +584,16 @@ def search_study():
 
         if loc:
             temp_sids = []
-            query = "select oversees.sid from oversees, institution where oversees.iid=institution.iid and institution.location LIKE %s"
-            match = g.conn.execute(query, '%' + loc + '%')
+            query = "select oversees.sid from oversees, institution where oversees.iid=institution.iid and institution.location LIKE LOWER(%s)"
+            match = g.conn.execute(query, '%' + loc.lower() + '%')
             for s in match:
                 temp_sids.append(s['sid'])
             sids = list(set(sids) & set(temp_sids))
 
         if focus:
             temp_sids = []
-            query = "SELECT sid FROM study WHERE study.focus LIKE %s"
-            match = g.conn.execute(query, '%' + focus + '%')
+            query = "SELECT sid FROM study WHERE study.focus LIKE LOWER(%s)"
+            match = g.conn.execute(query, '%' + focus.lower() + '%')
             for s in match:
                 temp_sids.append(s['sid'])
             sids = list(set(sids) & set(temp_sids))
